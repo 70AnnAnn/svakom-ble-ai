@@ -27,12 +27,12 @@ button:active{opacity:.7}
 <div id="status"></div>
 
 <script>
-let dev, char, keepTimer, pollTimer;
+let dev, char, keepTimer;
 const CMD_SCALE = 0x04, CMD_VIB = 0x03;
-let currentSpeed = 0, currentPattern = null;
 
 function log(msg, ok){ 
-  status.innerHTML += `<div class="status ${ok?'ok':'err'}">${msg}</div>`; 
+  const s=document.getElementById('status');
+  s.innerHTML += `<div class="status ${ok?'ok':'err'}">${msg}</div>`; 
 }
 
 async function connect(){
@@ -43,4 +43,56 @@ async function connect(){
       optionalServices:['0000ffe0-0000-1000-8000-00805f9b34fb']
     });
     log(`找到 ${dev.name}`, true);
-    const srv =
+    const srv = await dev.gatt.connect();
+    const ffe = await srv.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+    char = await ffe.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+    log('✅ 就绪', true);
+    startPolling();
+  } catch(e){ log('❌ '+e.message); }
+}
+
+async function sendRaw(bytes){
+  if(!char) return;
+  try { await char.writeValueWithoutResponse(new Uint8Array(bytes)); }
+  catch(e){ log('写入失败:'+e.message); }
+}
+
+function startKeepalive(speed){
+  clearInterval(keepTimer);
+  if(speed<=0) return;
+  keepTimer = setInterval(()=>{
+    sendRaw([0x55,0x04,0x00,0x00,0x01,speed,0xAA]);
+  }, 1500);
+}
+
+async function poll(){
+  try {
+    const url = document.getElementById('url').value;
+    const secret = document.getElementById('secret').value;
+    const r = await fetch(url+'?secret='+secret);
+    const data = await r.json();
+    const c = data.cmd;
+    if(!c || c.action==='noop') return;
+    if(c.action==='stop'){
+      sendRaw([0x55,0x04,0x00,0x00,0x00,0x00,0xAA]);
+      clearInterval(keepTimer);
+      return;
+    }
+    if(c.speed!==undefined){
+      const s = Math.round(c.speed*2.55);
+      sendRaw([0x55,0x04,0x00,0x00,0x01,s,0xAA]);
+      startKeepalive(s);
+    }
+    if(c.pattern!==undefined){
+      sendRaw([0x55,0x03,0x00,0x00,c.pattern, c.level||3, 0x00]);
+    }
+  } catch(e){}
+}
+
+function startPolling(){
+  setInterval(poll, 300);
+}
+</script>
+</body>
+</html>
+
