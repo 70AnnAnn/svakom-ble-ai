@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>蓝牙中继</title>
+<style>
+body{font:16px system-ui;max-width:400px;margin:40px auto;padding:0 20px;background:#111;color:#eee}
+input,button{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #333;background:#222;color:#fff;font-size:15px;box-sizing:border-box}
+button{background:#7c3aed;border:none;cursor:pointer}
+button:active{opacity:.7}
+.status{padding:10px;border-radius:8px;margin:10px 0;font-size:13px}
+.ok{background:#064e3b;color:#6ee7b7}
+.err{background:#450a0a;color:#fca5a5}
+</style>
+</head>
+<body>
+<h2>🔌 蓝牙中继</h2>
+
+<label>中继地址</label>
+<input id="url" value="https://svakom-bridge-o0nt.onrender.com/toy-next">
+
+<label>密码</label>
+<input id="secret" type="password" value="anan0712">
+
+<button onclick="connect()">🔗 连接玩具</button>
+<div id="status"></div>
+
+<script>
+let dev, char, keepTimer, pollTimer;
+const CMD_SCALE = 0x04, CMD_VIB = 0x03;
+let currentSpeed = 0, currentPattern = null;
+
+function log(msg, ok){ 
+  status.innerHTML += `<div class="status ${ok?'ok':'err'}">${msg}</div>`; 
+}
+
+async function connect(){
+  try {
+    log('扫描中...', true);
+    dev = await navigator.bluetooth.requestDevice({
+      filters:[{namePrefix:'SL278H'}],
+      optionalServices:['0000ffe0-0000-1000-8000-00805f9b34fb']
+    });
+    log(`找到 ${dev.name}`, true);
+    const srv =
