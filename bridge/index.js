@@ -22,6 +22,7 @@ app.get('/toy-next', async (req, res) => {
   await new Promise(r => waiters.push(r));
   res.json({ cmd: queue.shift() || { action: 'noop' } });
 });
+
 app.get('/send', (req, res) => {
     if (req.query.secret !== SECRET) return res.status(403).json({ error: 'denied' });
     const cmd = {};
