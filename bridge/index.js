@@ -22,6 +22,21 @@ app.get('/toy-next', async (req, res) => {
   await new Promise(r => waiters.push(r));
   res.json({ cmd: queue.shift() || { action: 'noop' } });
 });
+app.get('/send', (req, res) => {
+    if (req.query.secret !== SECRET) return res.status(403).json({ error: 'denied' });
+    const cmd = {};
+    if (req.query.speed !== undefined) cmd.speed = parseFloat(req.query.speed);
+    if (req.query.pattern !== undefined) cmd.pattern = parseInt(req.query.pattern);
+    if (req.query.level !== undefined) cmd.level = parseFloat(req.query.level);
+    if (req.query.stop !== undefined) cmd.stop = true;
+    if (req.query.sec !== undefined) cmd.sec = parseFloat(req.query.sec);
+    if (req.query.clap !== undefined) cmd.clap = parseInt(req.query.clap);
+    if (req.query.heat !== undefined) cmd.heat = req.query.heat === 'true';
+    if (Object.keys(cmd).length === 0) return res.json({ online: true });
+    queue.push(cmd);
+    while (waiters.length) waiters.shift()(queue.shift());
+    res.json({ ok: true, cmd });
+});
 
 app.get('/mcp', (req, res) => {
   res.json({
